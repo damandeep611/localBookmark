@@ -1,0 +1,16 @@
+services:
+  stash:
+    build: .
+    image: stash-bookmarks
+    container_name: stash
+    ports:
+      - "${PORT:-3000}:3000"
+    volumes:
+      # SQLite DB + all downloaded images live in this named volume.
+      # Prefer a plain folder you can see/back up? Replace with:  - ./data:/app/data
+      # (needs Docker Desktop file sharing to work for this drive).
+      - stash-data:/app/data
+    restart: unless-stopped
+
+volumes:
+  stash-data:

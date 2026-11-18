@@ -1,36 +1,79 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Stash — local bookmark archive
 
-## Getting Started
+A local-first bookmark app for X posts, YouTube videos, saved images, links and your own notes.
+Everything (SQLite DB + downloaded images) stays on your machine.
 
-First, run the development server:
+## Run
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+docker compose up -d --build     # → http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Different port: `PORT=4000 docker compose up -d`. Stop: `docker compose down` (data is kept).
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Dev
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```bash
+npm install
+npm run dev                      # → http://localhost:3000, data in ./data
+```
 
-## Learn More
+Requires Node 24+ (uses the built-in `node:sqlite`, no native modules).
 
-To learn more about Next.js, take a look at the following resources:
+## Adding bookmarks (fast paths)
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+| Action | What happens |
+|---|---|
+| **Paste a URL anywhere** (Ctrl+V) | Quick-add opens with the link and the detected source. Enter saves. |
+| **Paste / drag an image** | Quick-add opens in *Write / Images* mode with the image attached. |
+| **Paste plain text** | Opens *Write* mode with the text as content. |
+| **N** | Open quick-add. **Ctrl+K** or **/** focuses search. |
+| **Write / Images tab** | Manual bookmark: title, paragraph text, multiple images, optional reference link, "saved from" source. |
+| **Import** | Bulk import X bookmarks, YouTube playlists, or any list of links. |
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Link bookmarks save instantly; title/text/images are fetched in the background and
+**images are downloaded locally**, so they survive deleted tweets and dead links.
 
-## Deploy on Vercel
+- X posts → `api.fxtwitter.com` (text, author, photos, video thumbnails)
+- YouTube → oEmbed (title, channel, thumbnail)
+- Everything else → Open Graph tags
+- If a fetch fails, the bookmark is still saved; edit it yourself (✏️) or hit *Retry*.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Organizing
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+- **Collection**: one per bookmark (the big pills). Create inline from any collection picker or the `+` pill.
+- **Tags**: many per bookmark. Type to search, Enter creates.
+- **Source**: auto-detected from the URL, overridable (e.g. an image you saved from Instagram).
+- **Organize** panel: rename / recolor / delete collections and tags. Renaming onto an existing name **merges** them.
+
+## Exporting your lists before clearing them
+
+**X bookmarks**: install [twitter-web-exporter](https://github.com/prinsss/twitter-web-exporter) (Tampermonkey userscript),
+open `x.com/i/bookmarks`, scroll to the bottom, export *Bookmarks → JSON*, then *Import → X bookmarks*.
+
+**YouTube Watch Later**:
+
+```bash
+yt-dlp --flat-playlist -J --cookies-from-browser chrome "https://www.youtube.com/playlist?list=WL" > watch_later.json
+```
+
+Then *Import → YouTube playlist*. Keep the raw export files too, as a second backup.
+
+## Backup
+
+```bash
+docker cp stash:/app/data ./stash-backup     # DB + all media
+```
+
+## Layout
+
+```
+app/api/…          route handlers (bookmarks, collections, tags, import, media)
+lib/db.ts          SQLite schema (node:sqlite)
+lib/repo.ts        all queries
+lib/fetchers.ts    X / YouTube / Open Graph metadata
+lib/worker.ts      background fetch + media download queue
+lib/importers.ts   X export, yt-dlp JSON, URL lists
+components/        UI (grid, add modal, per-type detail views, organize, import)
+public/design/     original design references
+```
